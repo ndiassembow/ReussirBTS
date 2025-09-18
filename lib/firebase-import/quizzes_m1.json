@@ -1,0 +1,92 @@
+[
+  {
+    "id": "q1",
+    "moduleId": "m1",
+    "title": "Quiz Math 1 - Fondamentaux",
+    "description": "Opérations de base, dérivées/ intégrales simples, équation linéaire.",
+    "durationSeconds": 600,
+    "allowRetake": true,
+    "order": 1,
+    "badgeThresholds": { "gold": 90, "silver": 75, "bronze": 50 },
+    "questions": [
+      {
+        "question": "1 + 1 = ?",
+        "options": ["1", "2", "3", "4"],
+        "correctIndex": 1,
+        "explanation": "Addition de deux unités : 1 + 1 = 2."
+      },
+      {
+        "question": "2 + 2 = ?",
+        "options": ["2", "3", "4", "5"],
+        "correctIndex": 2,
+        "explanation": "2 + 2 = 4. Pense à grouper par paires."
+      },
+      {
+        "question": "Quelle est la dérivée de x² ?",
+        "options": ["x", "2x", "x²", "2"],
+        "correctIndex": 1,
+        "explanation": "Règle de puissance : d(x^n)/dx = n·x^(n-1). Pour x², c’est 2x."
+      },
+      {
+        "question": "∫ 1 dx = ?",
+        "options": ["x + C", "1 + C", "0 + C", "2x + C"],
+        "correctIndex": 0,
+        "explanation": "La primitive de 1 est x (constante 1 → pente 0). On ajoute la constante C."
+      },
+      {
+        "question": "Résoudre 2x = 6",
+        "options": ["1", "2", "3", "4"],
+        "correctIndex": 2,
+        "explanation": "Diviser par 2 des deux côtés : x = 3."
+      }
+    ]
+  },
+  {
+    "id": "q2",
+    "moduleId": "m1",
+    "title": "Quiz Math 2 - Dérivées",
+    "description": "Dérivées de base (test rapide).",
+    "durationSeconds": 480,
+    "allowRetake": true,
+    "order": 2,
+    "badgeThresholds": { "gold": 90, "silver": 75, "bronze": 50 },
+    "questions": [
+      {
+        "question": "La dérivée de sin(x) est…",
+        "options": ["cos(x)", "-cos(x)", "sin(x)", "-sin(x)"],
+        "correctIndex": 0,
+        "explanation": "d/dx[sin(x)] = cos(x)."
+      },
+      {
+        "question": "La dérivée de 3x est…",
+        "options": ["x", "3", "3x²", "0"],
+        "correctIndex": 1,
+        "explanation": "d/dx[3x] = 3 (constante * x → constante)."
+      }
+    ]
+  },
+  {
+    "id": "q3",
+    "moduleId": "m1",
+    "title": "Quiz Math 3 - Algèbre",
+    "description": "Équations et matrices (test rapide).",
+    "durationSeconds": 480,
+    "allowRetake": true,
+    "order": 3,
+    "badgeThresholds": { "gold": 90, "silver": 75, "bronze": 50 },
+    "questions": [
+      {
+        "question": "Solve 2x = 6",
+        "options": ["1", "2", "3", "4"],
+        "correctIndex": 2,
+        "explanation": "x = 3, en divisant par 2."
+      },
+      {
+        "question": "Le déterminant d’une matrice 2×2 [[a,b],[c,d]] est…",
+        "options": ["a+b+c+d", "ad - bc", "ab + cd", "a-d"],
+        "correctIndex": 1,
+        "explanation": "det = ad − bc."
+      }
+    ]
+  }
+]

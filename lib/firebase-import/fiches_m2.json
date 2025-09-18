@@ -1,0 +1,29 @@
+[
+  {
+    "id": "f1",
+    "title": "Initiation à la comptabilité",
+    "url": "https://www.doc-developpement-durable.org/file/Gestion-entreprises-et-associations/comptabilite-entreprise/Initiation_a_la_comptabilite.pdf",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/fiche_intro_compta.pdf",
+    "pages": 40,
+    "level": "BTS1",
+    "tags": ["compta"]
+  },
+  {
+    "id": "f2",
+    "title": "Introduction Comptabilité UNCTAD",
+    "url": "https://unctad.org/system/files/official-document/diaeinf2021d6_module-1_fr.pdf",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/fiche_bilan_compta.pdf",
+    "pages": 35,
+    "level": "BTS2",
+    "tags": ["compta"]
+  },
+  {
+    "id": "f3",
+    "title": "Cours pratique de comptabilité",
+    "url": "https://www.tifawt.com/wp-content/uploads/2014/01/Cours-de-Comptabilite-generale.pdf",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/fiche_compte_resultat.pdf",
+    "pages": 55,
+    "level": "BTS1",
+    "tags": ["compta"]
+  }
+]

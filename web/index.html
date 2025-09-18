@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- 🔹 Manifest pour PWA (Progressive Web App) -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- 🔹 Couleur de la barre du navigateur -->
+    <meta name="theme-color" content="#2563EB" />
+
+    <!-- 🔹 Icone iOS pour l'écran d'accueil -->
+    <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+    <!-- 🔹 Autorise l'application web à fonctionner en plein écran sur iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <!-- 🔹 Base href pour Flutter web, remplacé par --base-href lors du build -->
+    <base href="$FLUTTER_BASE_HREF" />
+
+    <!-- 🔹 Charset et compatibilité -->
+    <meta charset="UTF-8" />
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
+    <meta name="description" content="A new Flutter project." />
+
+    <!-- 🔹 iOS meta tags & icons supplémentaires -->
+    <meta name="apple-mobile-web-app-title" content="reussirbts" />
+    <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+    <!-- 🔹 Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png" />
+
+    <title>reussirbts</title>
+  </head>
+  <body>
+    <!-- 🔹 Script Flutter Bootstrap pour démarrer l'application -->
+    <script src="flutter_bootstrap.js" async></script>
+
+    <!-- 🔹 Enregistrement du Service Worker pour PWA -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("flutter-first-frame", function () {
+          navigator.serviceWorker.register("flutter_service_worker.js");
+        });
+      }
+    </script>
+  </body>
+</html>

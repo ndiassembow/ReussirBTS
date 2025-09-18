@@ -1,0 +1,20 @@
+[
+  {
+    "id": "v1",
+    "title": "Cours vidéo - Fonctions et dérivées",
+    "url": "https://www.youtube.com/watch?v=V1JkF0KHzRk",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/video_intro_math.mp4",
+    "duration": 600,
+    "level": "BTS1",
+    "tags": ["math"]
+  },
+  {
+    "id": "v2",
+    "title": "Cours vidéo - Algèbre linéaire",
+    "url": "https://www.youtube.com/watch?v=Zo0N6l8U2ik",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/video_algebre.mp4",
+    "duration": 720,
+    "level": "BTS2",
+    "tags": ["math"]
+  }
+]

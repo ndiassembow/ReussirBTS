@@ -1,0 +1,11 @@
+[
+  {
+    "id": "v1",
+    "title": "Cours vidéo - Introduction à la Comptabilité",
+    "url": "https://www.youtube.com/watch?v=8Y0dvzD9s5Y",
+    "localPath": "file:///C:/Users/unchk/Desktop/ALL/MEMOIRE/__ENV_Flutter/reussirbts/DONNEES/video_intro_compta.mp4",
+    "duration": 900,
+    "level": "BTS1",
+    "tags": ["compta"]
+  }
+]

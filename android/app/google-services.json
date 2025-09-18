@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "807140710167",
+    "project_id": "reussirbts",
+    "storage_bucket": "reussirbts.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:807140710167:android:d89ce773d1aefe13450952",
+        "android_client_info": {
+          "package_name": "com.example.reussirbts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBq-sDrk9GDjKVwB-kbWxWYADQedTPgXno"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

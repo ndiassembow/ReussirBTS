@@ -1,0 +1,69 @@
+# Nom et description de l'application
+name: reussirbts
+description: Une application de révision pour le BTS au Sénégal
+
+# ⚠️ Ne pas publier sur pub.dev
+publish_to: "none"
+
+# Version et build
+version: 1.0.0+1
+
+# SDK Flutter / Dart requis
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+# 📦 Dépendances principales
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 🔹 Firebase
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.18.0
+  cloud_firestore: ^4.16.0
+  firebase_storage: ^11.6.9
+
+  # 🔹 Gestion d'état
+  provider: ^6.1.2
+
+  # 🔹 Polices et icônes
+  google_fonts: ^6.1.0
+  cupertino_icons: ^1.0.8
+
+  # 🔹 Connectivité
+  connectivity_plus: ^4.0.2
+
+  # 🔹 Stockage local
+  shared_preferences: ^2.2.3
+  path_provider: ^2.1.4
+
+  # 🔹 Upload fichiers / images
+  file_picker: ^8.0.0+1
+
+  # 🔹 Liens externes
+  url_launcher: ^6.3.0
+
+  # 🔹 SVG
+  flutter_svg: ^2.0.9
+
+  # 🔹 Téléchargement & ouverture fichiers
+  dio: ^5.7.0
+  open_file: ^3.3.2
+
+  # 🔹 Indicateurs circulaires
+  percent_indicator: ^4.2.2
+
+# 🛠 Dev dependencies (tests, linter)
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.1
+
+# ⚡ Flutter config
+flutter:
+  uses-material-design: true
+
+  # 🔹 Assets (images, illustrations)
+  assets:
+    - assets/images/bts_logo.png
+    - assets/illustrations/splash.png

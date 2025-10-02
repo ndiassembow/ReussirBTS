@@ -386,7 +386,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
                         subtitle: Text(
                           [
                             if (v.description != null) v.description,
-                            if (v.duration != null) "${v.duration} min",
+                            if (v.duration != null) "${v.duration} sec",
                             if (v.level != null) "Niveau ${v.level}",
                           ].where((e) => e != null && e.isNotEmpty).join(" • "),
                           maxLines: 2,

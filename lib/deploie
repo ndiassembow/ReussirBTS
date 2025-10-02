@@ -27,26 +27,7 @@ git remote add origin https://github.com/ndiassembow/ReussirBTS.git
 b) Configurer ton identité (une seule fois)
 git config --global user.name "ndiassembow"
 git config --global user.email "tonEmailGitHub@exemple.com"
-c) Ignorer les fichiers sensibles (.gitignore)
-À la racine du projet (là où est .git), crée ou édite .gitignore :
-# Firebase credentials
-lib/firebase-import/serviceAccountKey.json
-# Flutter / Dart
-build/
-.dart_tool/
-.packages
-.pub/
-.idea/
-.vscode/
-Vérifie :
-git check-ignore -v lib/firebase-import/serviceAccountKey.json
-d) Retirer du suivi Git le fichier secret
-git rm --cached lib/firebase-import/serviceAccountKey.json
-git add .gitignore
-git commit -m "Remove Firebase key + add .gitignore"
-e) Nettoyer l’historique si le secret a déjà été commité
-Installer git-filter-repo si nécessaire puis :
-git filter-repo --path lib/firebase-import/serviceAccountKey.json --invert-paths
+git commit -m "deploiement final"
 f) Envoyer sur GitHub
 git branch -M main
 git push -u origin main --force

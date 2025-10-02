@@ -106,7 +106,8 @@ class _HomeTabState extends State<HomeTab> {
         onRefresh: _loadModules,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          // 👈 padding bas augmenté pour éviter que le menu cache les cartes
           children: [
             // Recherche
             TextField(
@@ -193,6 +194,32 @@ class _HomeTabState extends State<HomeTab> {
                       onTap: () => _openModule(m),
                     ),
                   )),
+
+            // 🔥 NOUVELLES SECTIONS ICI
+            const SizedBox(height: 24),
+            Text("Autres espaces",
+                style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onBackground)),
+            const SizedBox(height: 12),
+
+            _EmptySectionCard(
+              title: "MICROLEARNING",
+              icon: Icons.flash_on,
+              color: Colors.cyan,
+              message: "Cette section ne dispose pas encore de contenu.",
+            ),
+
+            const SizedBox(height: 16),
+
+            _EmptySectionCard(
+              title: "EXAMEN BTS",
+              icon: Icons.school,
+              color: Colors.deepPurple,
+              message: "Cette section ne dispose pas encore de contenu.",
+            ),
+
+            const SizedBox(height: 40), // 👈 espace supplémentaire en bas
           ],
         ),
       ),
@@ -299,7 +326,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
       body: RefreshIndicator(
         onRefresh: _loadContent,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
           children: [
             Text(widget.module.title,
                 style: theme.textTheme.headlineSmall?.copyWith(
@@ -373,6 +400,78 @@ class _ModuleDetailState extends State<ModuleDetail> {
                     )),
               ],
             ]
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 🎨 Widget réutilisable pour les sections vides
+class _EmptySectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final String message;
+
+  const _EmptySectionCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("$title — Bientôt disponible")),
+        );
+      },
+      child: Ink(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withOpacity(.8), color.withOpacity(.4)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.white,
+              radius: 26,
+              child: Icon(icon, color: color, size: 30),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text(message,
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.white.withOpacity(0.9))),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white),
           ],
         ),
       ),

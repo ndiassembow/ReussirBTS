@@ -286,62 +286,36 @@ class _ProgressTabState extends State<ProgressTab> {
               backgroundColor: Colors.grey.shade300,
             ),
 
-            // Bar chart: Moyenne vs Meilleur
+            // Doughnut chart: Moyenne vs Meilleur
             const SizedBox(height: 12),
             SizedBox(
-              height: 140,
-              child: BarChart(
-                BarChartData(
-                  maxY: 100,
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true, interval: 20),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final style = const TextStyle(fontSize: 12);
-                          switch (value.toInt()) {
-                            case 0:
-                              return Text('Moyenne', style: style);
-                            case 1:
-                              return Text('Meilleur', style: style);
-                            default:
-                              return const Text('');
-                          }
-                        },
-                        reservedSize: 36,
+              height: 180,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 4,
+                  centerSpaceRadius: 40,
+                  sections: [
+                    PieChartSectionData(
+                      value: avg,
+                      title: "Moy ${avg.toStringAsFixed(0)}%",
+                      color: Colors.purple,
+                      radius: 60,
+                      titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
-                    rightTitles:
-                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles:
-                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: FlGridData(show: true, horizontalInterval: 20),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: avg,
-                          width: 18,
-                          borderRadius: BorderRadius.circular(4),
-                          rodStackItems: [],
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                            toY: best,
-                            width: 18,
-                            borderRadius: BorderRadius.circular(4)),
-                      ],
+                    PieChartSectionData(
+                      value: best,
+                      title: "Best ${best.toStringAsFixed(0)}%",
+                      color: Colors.green,
+                      radius: 60,
+                      titleStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),

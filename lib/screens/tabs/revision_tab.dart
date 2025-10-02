@@ -87,7 +87,7 @@ class _RevisionTabState extends State<RevisionTab> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: "Rechercher un module, matière ou mot-clé...",
+                hintText: "Rechercher TEST un module, matière ou mot-clé...",
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(

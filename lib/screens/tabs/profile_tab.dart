@@ -84,6 +84,7 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
+// ===== Upload avatar =====
   Future<void> _pickAndUploadPhoto() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -103,82 +104,33 @@ class _ProfileTabState extends State<ProfileTab> {
       // Taille max 5 Mo
       if (bytes.lengthInBytes > 5 * 1024 * 1024) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Image trop lourde (max 5 Mo).")));
+          const SnackBar(content: Text("Image trop lourde (max 5 Mo).")),
+        );
         return;
       }
 
-// ===== Supprimer avatar =====
-      Future<void> _removeAvatar() async {
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid == null) return;
-
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Supprimer la photo ?"),
-            content: const Text("Cette action retirera ta photo de profil."),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text("Annuler")),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text("Supprimer"),
-              ),
-            ],
-          ),
-        );
-
-        if (confirm != true) return;
-
-        try {
-          // Supprimer tous les formats possibles
-          for (final ext in ['jpg', 'jpeg', 'png']) {
-            await FirebaseStorage.instance
-                .ref('avatars/$uid.$ext')
-                .delete()
-                .catchError((_) {});
-          }
-
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .update({'photoUrl': FieldValue.delete()});
-
-          final updated = _user!.copyWith(photoUrl: '');
-          context.read<UserProvider>().setUser(updated);
-          setState(() {
-            _user = updated;
-            _photoUrl = null;
-          });
-
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text("Photo supprimée.")));
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Erreur suppression photo : $e")));
-        }
-      }
-
-      // Extension
+      // Vérifier extension
       final ext = (file.extension ?? '').toLowerCase();
       final allowed = ['png', 'jpg', 'jpeg'];
       if (!allowed.contains(ext)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Format non supporté (png/jpg/jpeg)")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Format non supporté (png/jpg/jpeg)")),
+        );
         return;
       }
 
+      // Upload Firebase Storage
       final ref = FirebaseStorage.instance.ref().child('avatars/$uid.$ext');
       await ref.putData(bytes, SettableMetadata(contentType: 'image/$ext'));
       final url = await ref.getDownloadURL();
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'photoUrl': url, 'photoUpdatedAt': DateTime.now()});
+      // MAJ Firestore (⚠️ timestamp corrigé)
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'photoUrl': url,
+        'photoUpdatedAt': FieldValue.serverTimestamp(),
+      });
 
+      // MAJ état local
       final updated = _user!.copyWith(photoUrl: url);
       context.read<UserProvider>().setUser(updated);
       setState(() {
@@ -186,14 +138,17 @@ class _ProfileTabState extends State<ProfileTab> {
         _photoUrl = url;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Photo mise à jour ✅")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Photo mise à jour ✅")),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Erreur upload : $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur upload : $e")),
+      );
     }
   }
 
+// ===== Supprimer avatar =====
   Future<void> _removeAvatar() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -205,11 +160,12 @@ class _ProfileTabState extends State<ProfileTab> {
         content: const Text("Cette action retirera ta photo de profil."),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Annuler")),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Annuler"),
+          ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text("Supprimer"),
           ),
         ],
@@ -219,14 +175,18 @@ class _ProfileTabState extends State<ProfileTab> {
     if (confirm != true) return;
 
     try {
-      await FirebaseStorage.instance
-          .ref('avatars/$uid.jpg')
-          .delete()
-          .catchError((_) {});
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'photoUrl': FieldValue.delete()});
+      // Essayer de supprimer tous les formats possibles
+      for (final ext in ['jpg', 'jpeg', 'png']) {
+        await FirebaseStorage.instance
+            .ref('avatars/$uid.$ext')
+            .delete()
+            .catchError((_) {});
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'photoUrl': FieldValue.delete(),
+        'photoUpdatedAt': FieldValue.serverTimestamp(),
+      });
 
       final updated = _user!.copyWith(photoUrl: '');
       context.read<UserProvider>().setUser(updated);
@@ -235,11 +195,13 @@ class _ProfileTabState extends State<ProfileTab> {
         _photoUrl = null;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Photo supprimée.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Photo supprimée.")),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur suppression photo : $e")));
+        SnackBar(content: Text("Erreur suppression photo : $e")),
+      );
     }
   }
 

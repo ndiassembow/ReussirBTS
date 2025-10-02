@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../services/firestore_service.dart';
 import '../../models/video_model.dart';
 import '../../models/fiche_model.dart';
@@ -43,41 +44,57 @@ class _ModuleDetailScreenState extends State<ModuleDetailScreen> {
     });
   }
 
-  /// 🔹 Charge les vidéos et fiches depuis Firestore
+  /// 🔹 Charge d’abord les données locales (moduleData), puis tente Firestore
   Future<void> _loadData() async {
     setState(() => _loading = true);
 
     try {
       final moduleId = widget.moduleData['id'] ?? '';
+
+      // --- 1) Données locales transmises depuis RevisionTab ---
+      final localVideos = (widget.moduleData['videos'] as List?)
+              ?.map((v) => VideoItem.fromMap(Map<String, dynamic>.from(v),
+                  id: v['id'] ?? ''))
+              .toList() ??
+          [];
+      final localFiches = (widget.moduleData['fiches'] as List?)
+              ?.map((f) => Fiche.fromMap(Map<String, dynamic>.from(f),
+                  id: f['id'] ?? ''))
+              .toList() ??
+          [];
+
+      setState(() {
+        _videos = localVideos;
+        _fiches = localFiches;
+      });
+
+      // --- 2) Tentative de rafraîchissement depuis Firestore ---
       final vids = await _firestore.getVideosForModule(moduleId);
       final fics = await _firestore.getFichesForModule(moduleId);
 
       setState(() {
-        _videos = vids;
-        _fiches = fics;
+        _videos = vids.isNotEmpty ? vids : localVideos;
+        _fiches = fics.isNotEmpty ? fics : localFiches;
         _loading = false;
       });
     } catch (e) {
       print("Erreur Firestore: $e");
-      setState(() {
-        _videos = [];
-        _fiches = [];
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
   /// 🔹 Ouvre un lien externe (web ou mobile)
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
+    final uri = Uri.parse(url);
 
     if (kIsWeb) {
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), webOnlyWindowName: "_blank");
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, webOnlyWindowName: "_blank");
       }
       return;
     }
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   /// 🔹 Télécharge et ouvre une ressource (PDF ou MP4)

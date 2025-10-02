@@ -24,7 +24,6 @@ class UserProvider with ChangeNotifier {
     required String school,
     required String speciality,
     required String password,
-    required bool offline, // option pour dev/offline
     String role = 'etudiant',
     String niveau = 'BTS1',
   }) async {
@@ -37,7 +36,7 @@ class UserProvider with ChangeNotifier {
 
       final uid = cred.user!.uid;
 
-      // 🔹 Création du modèle AppUser
+      // 🔹 Création du modèle AppUser (⚠️ sans mot de passe)
       AppUser newUser = AppUser(
         uid: uid,
         name: name,
@@ -46,8 +45,6 @@ class UserProvider with ChangeNotifier {
         school: school,
         speciality: speciality,
         role: role,
-        password:
-            password, // ⚠️ attention : stocker en clair seulement pour dev/test
         niveau: niveau,
       );
 
@@ -56,7 +53,7 @@ class UserProvider with ChangeNotifier {
 
       // 🔹 Mise à jour du provider
       _user = newUser;
-      notifyListeners(); // informe l’UI
+      notifyListeners();
     } on FirebaseAuthException catch (e) {
       throw e.message ?? "Erreur d'inscription";
     }
@@ -80,6 +77,8 @@ class UserProvider with ChangeNotifier {
       if (doc.exists) {
         _user = AppUser.fromMap(doc.data()!);
         notifyListeners();
+      } else {
+        throw "Profil utilisateur introuvable dans Firestore.";
       }
     } on FirebaseAuthException catch (e) {
       throw e.message ?? "Erreur de connexion";

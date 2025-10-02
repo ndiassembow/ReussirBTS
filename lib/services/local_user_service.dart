@@ -18,17 +18,30 @@ class LocalUserService {
   }
 
   /// Ajoute un utilisateur à la file d’attente.
+  /// 🚫 Ne stocke jamais de mot de passe en clair.
   Future<void> savePendingUserMap(Map<String, dynamic> userMap) async {
     final prefs = await SharedPreferences.getInstance();
     final list = await loadPendingUsers();
-    list.add(userMap);
+
+    // Supprimer toute trace éventuelle de mot de passe
+    final sanitized = Map<String, dynamic>.from(userMap)..remove('password');
+
+    list.add(sanitized);
     await prefs.setString(_pendingKey, jsonEncode(list));
   }
 
   /// Remplace toute la file d’attente par une nouvelle liste d’utilisateurs.
   Future<void> replacePendingUsers(List<Map<String, dynamic>> users) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingKey, jsonEncode(users));
+
+    // Nettoyer chaque entrée avant de sauvegarder
+    final sanitized = users.map((u) {
+      final copy = Map<String, dynamic>.from(u);
+      copy.remove('password');
+      return copy;
+    }).toList();
+
+    await prefs.setString(_pendingKey, jsonEncode(sanitized));
   }
 
   /// Vide complètement la file d’attente des utilisateurs.

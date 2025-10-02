@@ -84,7 +84,7 @@ class Fiche {
       'localPath': localPath,
       'description': description,
       'viewed': viewed,
-      'watched': watched, // ✅ ajouté dans la sauvegarde
+      'watched': watched,
       'duration': duration,
       'pages': pages,
       'level': level,

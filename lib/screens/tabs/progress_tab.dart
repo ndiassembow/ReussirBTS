@@ -9,6 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../../models/course_model.dart';
 import '../../models/quiz_result_model.dart';
@@ -36,6 +37,9 @@ class _ProgressTabState extends State<ProgressTab> {
   final Map<String, List<Fiche>> _fichesByModule = {};
   final Map<String, List<VideoItem>> _videosByModule = {};
 
+  // leaderboard simple: list of maps {userId, name, score}
+  List<Map<String, dynamic>> _leaderboard = [];
+
   StreamSubscription<ConnectivityResult>? _connectivitySub;
 
   @override
@@ -45,6 +49,7 @@ class _ProgressTabState extends State<ProgressTab> {
       setState(() => _online = status != ConnectivityResult.none);
     });
     _loadAll();
+    _loadLeaderboard();
   }
 
   @override
@@ -76,7 +81,7 @@ class _ProgressTabState extends State<ProgressTab> {
       _videosByModule.clear();
 
       for (final m in modules) {
-        // 🔹 Prendre la bonne collection : quizHistory
+        // quizHistory for this user and module
         try {
           final snap = await _db
               .collection("users/${user.uid}/quizHistory")
@@ -108,12 +113,42 @@ class _ProgressTabState extends State<ProgressTab> {
     }
   }
 
+  /// Try to load a simple leaderboard collection. If it doesn't exist or empty,
+  /// we leave the list empty. Structure expected: docs with { userId, name, score }
+  Future<void> _loadLeaderboard() async {
+    try {
+      final snap = await _db
+          .collection('leaderboard')
+          .orderBy('score', descending: true)
+          .limit(10)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        _leaderboard = snap.docs.map((d) {
+          final data = d.data();
+          return {
+            'userId': data['userId'] ?? d.id,
+            'name': data['name'] ?? data['displayName'] ?? 'Anonyme',
+            'score':
+                (data['score'] is num) ? (data['score'] as num).toInt() : 0,
+          };
+        }).toList();
+      } else {
+        _leaderboard = [];
+      }
+    } catch (e) {
+      // if collection doesn't exist or permission denied, keep empty
+      _leaderboard = [];
+    } finally {
+      if (mounted) setState(() {});
+    }
+  }
+
   Map<String, dynamic> _computeStats(String moduleId) {
     final quizzes = _quizResultsByModule[moduleId] ?? [];
     final fiches = _fichesByModule[moduleId] ?? [];
     final videos = _videosByModule[moduleId] ?? [];
 
-    // Scores en %
+    // Scores in %
     final quizScores = quizzes
         .map((r) => r.total > 0 ? (r.score / r.total * 100) : 0)
         .toList();
@@ -183,12 +218,17 @@ class _ProgressTabState extends State<ProgressTab> {
     final stats = _computeStats(m.id);
     final badge = _badgeForScore(stats['best']);
 
+    // prepare bar data for fl_chart
+    final avg = (stats['avg'] as double).clamp(0.0, 100.0);
+    final best = (stats['best'] as num).toDouble().clamp(0.0, 100.0);
+
     return Card(
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.fromLTRB(16, 16, 16, 20), // leave bottom padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -211,7 +251,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -235,15 +275,79 @@ class _ProgressTabState extends State<ProgressTab> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text("Moyenne Quiz: ${stats['avg'].toStringAsFixed(1)}%",
+            const SizedBox(height: 12),
+            Text("Moyenne Quiz: ${avg.toStringAsFixed(1)}%",
                 style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 8),
             LinearProgressIndicator(
-              value: (stats['avg'] ?? 0) / 100,
+              value: (avg) / 100,
               minHeight: 8,
               color: Colors.purple,
               backgroundColor: Colors.grey.shade300,
             ),
+
+            // Bar chart: Moyenne vs Meilleur
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 140,
+              child: BarChart(
+                BarChartData(
+                  maxY: 100,
+                  barTouchData: BarTouchData(enabled: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: true, interval: 20),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final style = const TextStyle(fontSize: 12);
+                          switch (value.toInt()) {
+                            case 0:
+                              return Text('Moyenne', style: style);
+                            case 1:
+                              return Text('Meilleur', style: style);
+                            default:
+                              return const Text('');
+                          }
+                        },
+                        reservedSize: 36,
+                      ),
+                    ),
+                    rightTitles:
+                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles:
+                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(show: true, horizontalInterval: 20),
+                  borderData: FlBorderData(show: false),
+                  barGroups: [
+                    BarChartGroupData(
+                      x: 0,
+                      barRods: [
+                        BarChartRodData(
+                          toY: avg,
+                          width: 18,
+                          borderRadius: BorderRadius.circular(4),
+                          rodStackItems: [],
+                        ),
+                      ],
+                    ),
+                    BarChartGroupData(
+                      x: 1,
+                      barRods: [
+                        BarChartRodData(
+                            toY: best,
+                            width: 18,
+                            borderRadius: BorderRadius.circular(4)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
@@ -294,14 +398,62 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
+  Widget _buildLeaderboard() {
+    if (_leaderboard.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.yellow.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          "🏆 Classement global indisponible (collection 'leaderboard' vide ou non configurée).",
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "🏆 Classement général",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ..._leaderboard.asMap().entries.map((entry) {
+          final rank = entry.key + 1;
+          final data = entry.value;
+          return ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: CircleAvatar(
+              backgroundColor: rank == 1 ? Colors.amber : Colors.grey.shade300,
+              child: Text("$rank"),
+            ),
+            title: Text(data['name'] ?? 'Anonyme'),
+            trailing: Text("${data['score']} pts"),
+          );
+        }).toList(),
+        const Divider(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ensure bottom padding so floating nav/buttons don't overlap content
+    final bottomSafe = MediaQuery.of(context).padding.bottom + 12.0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ma progression'),
         actions: [
           IconButton(
-              onPressed: () => _loadAll(force: true),
+              onPressed: () {
+                _loadAll(force: true);
+                _loadLeaderboard();
+              },
               icon: const Icon(Icons.refresh)),
         ],
       ),
@@ -310,7 +462,10 @@ class _ProgressTabState extends State<ProgressTab> {
           : _modules.isEmpty
               ? const Center(child: Text('Aucun module disponible.'))
               : RefreshIndicator(
-                  onRefresh: () => _loadAll(force: true),
+                  onRefresh: () async {
+                    await _loadAll(force: true);
+                    await _loadLeaderboard();
+                  },
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       return SingleChildScrollView(
@@ -320,7 +475,8 @@ class _ProgressTabState extends State<ProgressTab> {
                             minHeight: constraints.maxHeight,
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding:
+                                EdgeInsets.fromLTRB(12, 12, 12, bottomSafe),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -332,6 +488,8 @@ class _ProgressTabState extends State<ProgressTab> {
                                         '⚠️ Hors ligne — données partielles'),
                                   ),
                                 const SizedBox(height: 12),
+                                _buildLeaderboard(),
+                                const SizedBox(height: 8),
                                 ..._modules
                                     .map((m) => _buildModuleCard(m))
                                     .toList(),
@@ -348,6 +506,7 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 }
 
+/// Module progress details page (unchanged logic, small layout)
 class ModuleProgressPage extends StatelessWidget {
   final Course module;
   final List<QuizResult> quizResults;
@@ -374,7 +533,7 @@ class ModuleProgressPage extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
           if (quizResults.isNotEmpty)
             _buildSection(

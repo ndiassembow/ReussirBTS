@@ -17,7 +17,7 @@ class VideoItem {
     required this.url,
     this.localPath,
     this.description,
-    this.watched = false, // 🔹 par défaut non regardé
+    this.watched = false,
     this.duration,
     this.level,
     this.tags = const [],
@@ -60,7 +60,7 @@ class VideoItem {
       url: (map['url'] ?? '').toString(),
       localPath: map['localPath']?.toString(),
       description: map['description']?.toString(),
-      watched: map['watched'] ?? false, // ✅ ajouté
+      watched: map['watched'] ?? false,
       duration: _toNullableInt(map['duration']),
       level: map['level']?.toString(),
       tags: _toStringList(map['tags']),
@@ -76,7 +76,7 @@ class VideoItem {
       'url': url,
       'localPath': localPath,
       'description': description,
-      'watched': watched, // ✅ ajouté dans la sauvegarde
+      'watched': watched,
       'duration': duration,
       'level': level,
       'tags': tags,

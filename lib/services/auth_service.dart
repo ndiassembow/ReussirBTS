@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -11,15 +10,19 @@ import '../models/user_model.dart';
 import 'local_user_service.dart';
 import 'firestore_service.dart';
 
+/// 🔹 Service centralisé : Firebase Auth + Firestore + Offline (JSON + SharedPreferences)
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirestoreService _fsService = FirestoreService();
   final LocalUserService _localQueue = LocalUserService();
 
-  /// 🔹 Getter pour ID de l'utilisateur courant
+  /// ID utilisateur courant
   String get currentUserId => _auth.currentUser?.uid ?? '';
 
-  /// 🔹 Inscription
+  // ==============================
+  // 🔹 INSCRIPTION
+  // ==============================
   Future<AppUser> register({
     required String name,
     required String email,
@@ -27,14 +30,18 @@ class AuthService {
     required String school,
     required String speciality,
     required String password,
-    String role = 'etudiant',
-    String niveau = 'BTS1',
+    String role = "etudiant",
+    String niveau = "BTS1",
   }) async {
     try {
+      // Création Firebase Auth
       final cred = await _auth.createUserWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
       final uid = cred.user!.uid;
 
+      // Création modèle
       final user = AppUser(
         uid: uid,
         name: name,
@@ -43,26 +50,21 @@ class AuthService {
         school: school,
         speciality: speciality,
         role: role,
-        password: password,
+        niveau: niveau,
       );
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'uid': uid,
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'school': school,
-        'speciality': speciality,
-        'role': role,
-        'niveau': niveau,
-        'createdAt': DateTime.now().toIso8601String(),
+      // Sauvegarde Firestore
+      await _firestore.collection("users").doc(uid).set({
+        ...user.toMap(),
+        "createdAt": DateTime.now().toIso8601String(),
       });
 
+      // Sauvegarde locale
       await _saveUserLocal(user);
       return user;
     } catch (_) {
-      // Fallback offline
-      final fakeUid = 'pending_${DateTime.now().millisecondsSinceEpoch}';
+      // Fallback hors ligne
+      final fakeUid = "pending_${DateTime.now().millisecondsSinceEpoch}";
       final user = AppUser(
         uid: fakeUid,
         name: name,
@@ -71,19 +73,12 @@ class AuthService {
         school: school,
         speciality: speciality,
         role: role,
-        password: password,
+        niveau: niveau,
       );
 
       await _localQueue.savePendingUserMap({
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'school': school,
-        'speciality': speciality,
-        'password': password,
-        'role': role,
-        'niveau': niveau,
-        'createdAt': DateTime.now().toIso8601String(),
+        ...user.toMap(),
+        "createdAt": DateTime.now().toIso8601String(),
       });
 
       await _saveUserLocal(user);
@@ -91,7 +86,9 @@ class AuthService {
     }
   }
 
-  /// 🔹 Connexion
+  // ==============================
+  // 🔹 CONNEXION
+  // ==============================
   Future<AppUser> login({
     required String email,
     required String password,
@@ -99,42 +96,48 @@ class AuthService {
   }) async {
     try {
       final cred = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
 
-      final localUser = await getLocalUserByUid(cred.user!.uid);
+      // Récupération Firestore
+      final doc =
+          await _firestore.collection("users").doc(cred.user!.uid).get();
+      if (!doc.exists) {
+        throw Exception("Utilisateur introuvable dans Firestore.");
+      }
+      final user = AppUser.fromMap(doc.data()!);
 
-      if (rememberMe) await saveCredentials(email, password);
+      // Sauvegarde locale
+      await _saveUserLocal(user);
 
-      return localUser ??
-          AppUser(
-            uid: cred.user!.uid,
-            name: cred.user!.displayName ?? '',
-            email: cred.user!.email ?? email,
-            phone: '',
-            school: '',
-            speciality: '',
-            role: 'etudiant',
-            password: password,
-          );
+      // Sauvegarde identifiants si demandé
+      if (rememberMe) {
+        await saveCredentials(email, password);
+      } else {
+        await clearSavedCredentials();
+      }
+
+      return user;
     } catch (_) {
       // Fallback offline
       final user = await getLocalUserByEmail(email);
-      if (user != null && user.password == password) return user;
+      if (user != null) return user;
       throw Exception(
           "Impossible de se connecter (offline + aucun user local trouvé)");
     }
   }
 
-  /// 🔹 Réinitialisation mot de passe
+  // ==============================
+  // 🔹 REINITIALISATION MDP
+  // ==============================
   Future<void> resetPassword(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      throw Exception("Impossible d’envoyer l’email de réinitialisation : $e");
-    }
+    await _auth.sendPasswordResetEmail(email: email);
   }
 
-  /// 🔹 Déconnexion
+  // ==============================
+  // 🔹 DECONNEXION
+  // ==============================
   Future<void> logout() async {
     try {
       await _auth.signOut();
@@ -142,65 +145,63 @@ class AuthService {
     await _clearLocalSession();
   }
 
-  /// 🔹 Supprimer compte
+  // ==============================
+  // 🔹 SUPPRESSION COMPTE
+  // ==============================
   Future<void> deleteAccount() async {
     final current = _auth.currentUser;
-    if (current == null) throw Exception('Aucun utilisateur connecté');
+    if (current == null) throw Exception("Aucun utilisateur connecté");
     final uid = current.uid;
 
     try {
       await _fsService.deleteUserData(uid);
     } catch (e) {
-      throw Exception('Impossible de supprimer les données Firestore: $e');
+      throw Exception("Impossible de supprimer les données Firestore: $e");
     }
 
     try {
       await current.delete();
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
+      if (e.code == "requires-recent-login") {
         throw Exception(
-            'Ré-authentification requise pour supprimer le compte.');
+            "Ré-authentification requise pour supprimer le compte.");
       } else {
         throw Exception(
-            'Erreur suppression compte Auth: ${e.message ?? e.code}');
+            "Erreur suppression compte Auth: ${e.message ?? e.code}");
       }
-    } catch (e) {
-      throw Exception('Erreur suppression compte Auth: $e');
     } finally {
       await logout();
     }
   }
 
-  /// 🔹 Rejouer les utilisateurs hors-ligne
+  // ==============================
+  // 🔹 REJOUER PENDING USERS
+  // ==============================
   Future<void> replayPendingUsers() async {
     final pending = await _localQueue.loadPendingUsers();
     if (pending.isEmpty) return;
 
-    final List<Map<String, dynamic>> stillPending = [];
+    final stillPending = <Map<String, dynamic>>[];
+
     for (final u in pending) {
       try {
-        final cred = await _auth.createUserWithEmailAndPassword(
-            email: u['email'], password: u['password']);
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(cred.user!.uid)
-            .set({
-          ...u,
-          'uid': cred.user!.uid,
-          'syncedAt': DateTime.now().toIso8601String(),
-        });
+        // ⚠️ Pas de mot de passe dispo offline → admin doit réinviter
+        stillPending.add(u);
       } catch (_) {
         stillPending.add(u);
       }
     }
 
-    if (stillPending.isEmpty)
+    if (stillPending.isEmpty) {
       await _localQueue.clearPendingUsers();
-    else
+    } else {
       await _localQueue.replacePendingUsers(stillPending);
+    }
   }
 
-  /// 🔹 Stockage local des utilisateurs
+  // ==============================
+  // 🔹 STOCKAGE LOCAL UTILISATEURS
+  // ==============================
   Future<void> _saveUserLocal(AppUser user) async {
     if (kIsWeb) return;
     try {
@@ -209,11 +210,11 @@ class AuthService {
       users.add(user);
 
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/users.json');
+      final file = File("${dir.path}/users.json");
       await file
           .writeAsString(jsonEncode(users.map((u) => u.toMap()).toList()));
     } catch (e) {
-      print('AuthService._saveUserLocal error: $e');
+      print("AuthService._saveUserLocal error: $e");
     }
   }
 
@@ -221,11 +222,11 @@ class AuthService {
     if (kIsWeb) return [];
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/users.json');
+      final file = File("${dir.path}/users.json");
       if (!await file.exists()) return [];
       final List<dynamic> jsonList = jsonDecode(await file.readAsString());
       return jsonList.map((e) => AppUser.fromMap(e)).toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -248,28 +249,36 @@ class AuthService {
     }
   }
 
-  /// 🔹 “Se souvenir de moi” via SharedPreferences
+  // ==============================
+  // 🔹 SE SOUVENIR DE MOI (SharedPreferences)
+  // ==============================
   Future<void> saveCredentials(String email, String password) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('saved_email', email);
-    await prefs.setString('saved_password', password);
+    await prefs.setString("saved_email", email);
+    await prefs.setString("saved_password", password);
   }
 
   Future<Map<String, String>?> getSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('saved_email');
-    final password = prefs.getString('saved_password');
+    final email = prefs.getString("saved_email");
+    final password = prefs.getString("saved_password");
     if (email != null && password != null) {
-      return {'email': email, 'password': password};
+      return {"email": email, "password": password};
     }
     return null;
+  }
+
+  Future<void> clearSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("saved_email");
+    await prefs.remove("saved_password");
   }
 
   Future<void> _clearLocalSession() async {
     if (kIsWeb) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/users.json');
+      final file = File("${dir.path}/users.json");
       if (await file.exists()) await file.delete();
     } catch (_) {}
   }

@@ -1,16 +1,18 @@
 // lib/main.dart
-
+// 📦 Import principal Flutter (inclut widgets, thèmes, etc.)
 import 'package:flutter/material.dart';
+// 📦 Firebase pour l'initialisation
 import 'package:firebase_core/firebase_core.dart';
+// 📦 Détection de la plateforme (Web / Mobile)
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:provider/provider.dart'; // ✅ Gestion globale avec Provider
-
-// Imports internes
-import 'app/app_routes.dart';
-import 'app/app_theme.dart';
-import 'firebase_options.dart';
-import 'provider/user_provider.dart'; // ✅ Fournit les infos utilisateur
-import 'provider/theme_provider.dart'; // ✅ Fournit le thème clair/sombre
+// 📦 Provider : gestion globale d'état
+import 'package:provider/provider.dart';
+// 📂 Imports internes (organisation du projet)
+import 'app/app_routes.dart'; // Définition des routes de navigation
+import 'app/app_theme.dart'; // Définition des thèmes clair/sombre
+import 'firebase_options.dart'; // Configuration Firebase auto-générée
+import 'provider/user_provider.dart'; // Provider pour la gestion de l’utilisateur
+import 'provider/theme_provider.dart'; // Provider pour la gestion du thème
 
 /// 🔹 Flag global : indique si l'app est en mode hors-ligne
 bool isOfflineMode = false;

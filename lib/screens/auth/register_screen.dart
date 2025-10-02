@@ -1,12 +1,14 @@
 // 📁 lib/screens/register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../widgets/custom_input.dart';
 import '../../widgets/custom_button.dart';
 import '../../provider/user_provider.dart';
 import '../../utils/validators.dart';
 
-/// Écran d'inscription utilisateur (toujours rôle "étudiant").
+/// Écran d'inscription utilisateur (rôle "etudiant")
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -16,7 +18,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen>
     with TickerProviderStateMixin {
-  // 🔹 Contrôleurs des champs
+  // --- Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -25,15 +27,12 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
-  // 🔹 Rôle forcé et niveau sélectionné
+  // --- State
   String _role = 'etudiant';
   String _niveau = 'BTS1';
-
-  // 🔹 État de chargement / hors ligne
   bool _loading = false;
-  bool _offline = false;
 
-  // 🔹 Messages d’erreurs pour validation
+  // --- Validation errors
   String? _nameError,
       _emailError,
       _phoneError,
@@ -42,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       _passwordError,
       _confirmError;
 
-  // 🔹 Contrôleurs d’animation
+  // --- Anim controllers (optional)
   late final AnimationController _formController;
   late final AnimationController _btsController;
   late final AnimationController _footerController;
@@ -51,7 +50,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   void initState() {
     super.initState();
 
-    // Validation en temps réel sur chaque champ
     _nameCtrl.addListener(_validateField);
     _emailCtrl.addListener(_validateField);
     _phoneCtrl.addListener(_validateField);
@@ -60,15 +58,19 @@ class _RegisterScreenState extends State<RegisterScreen>
     _passwordCtrl.addListener(_validateField);
     _confirmCtrl.addListener(_validateField);
 
-    // Initialisation des animations
     _formController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _btsController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _footerController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
 
-    // Lancement séquentiel des animations
     _formController.forward().then((_) {
       _btsController.forward().then((_) {
         _footerController.forward();
@@ -78,7 +80,6 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   void dispose() {
-    // Libération mémoire
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
@@ -92,7 +93,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
-  /// Validation des champs avec utilitaires
   void _validateField() {
     setState(() {
       _nameError = Validators.fullName(_nameCtrl.text);
@@ -107,18 +107,19 @@ class _RegisterScreenState extends State<RegisterScreen>
     });
   }
 
-  /// Action : Inscrire l’utilisateur
-  void _register() async {
+  Future<void> _register() async {
     _validateField();
 
-    // Stop si erreurs
     if (_nameError != null ||
         _emailError != null ||
         _phoneError != null ||
         _schoolError != null ||
         _specialityError != null ||
         _passwordError != null ||
-        _confirmError != null) return;
+        _confirmError != null) {
+      // Ne pas soumettre si erreurs
+      return;
+    }
 
     setState(() => _loading = true);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -131,29 +132,39 @@ class _RegisterScreenState extends State<RegisterScreen>
         school: _schoolCtrl.text.trim(),
         speciality: _specialityCtrl.text.trim(),
         password: _passwordCtrl.text,
-        offline: _offline,
-        role: _role, // 🔹 toujours "etudiant"
-        niveau: _niveau, // 🔹 BTS1 ou BTS2
+        role: _role,
+        niveau: _niveau,
       );
+
+      // Envoi d'un email de vérification si possible
+      try {
+        final current = FirebaseAuth.instance.currentUser;
+        if (current != null && !current.emailVerified) {
+          await current.sendEmailVerification();
+        }
+      } catch (_) {
+        // ignore: do nothing if verification email fails
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("✅ Inscription réussie ! Vérifiez votre email."),
-        ),
+            content: Text("✅ Inscription réussie ! Vérifiez votre email.")),
       );
-      Navigator.pop(context);
+
+      // Redirige vers l'écran de connexion (ou /home si tu préfères)
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Erreur : $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Erreur : $e")),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  /// Widget utilitaire pour cartes animées
   Widget buildAnimatedCard({
     required Widget child,
     required AnimationController controller,
@@ -177,7 +188,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     final width = MediaQuery.of(context).size.width;
     const maxWidth = 500.0;
 
-    /// Carte réutilisable
     Widget buildCard({required Widget child}) {
       return Card(
         elevation: 10,
@@ -210,12 +220,9 @@ class _RegisterScreenState extends State<RegisterScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 🔹 Logo
                   Icon(Icons.school,
                       size: width < 600 ? 100 : 150, color: Colors.white),
                   const SizedBox(height: 16),
-
-                  // 🔹 Titre
                   Text("Réussir BTS",
                       style: TextStyle(
                           color: Colors.white,
@@ -223,8 +230,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                           fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center),
                   const SizedBox(height: 8),
-
-                  // 🔹 Sous-titre
                   Text("Inscrivez-vous pour accéder aux cours et quiz",
                       style: TextStyle(
                           color: Colors.white70,
@@ -232,13 +237,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                       textAlign: TextAlign.center),
                   const SizedBox(height: 32),
 
-                  // 🔹 Formulaire animé
+                  // formulaire
                   buildAnimatedCard(
                     controller: _formController,
                     child: buildCard(
                       child: Column(
                         children: [
-                          // Champs du formulaire
                           CustomInput(
                               label: "Nom complet",
                               controller: _nameCtrl,
@@ -260,8 +264,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                               controller: _specialityCtrl,
                               errorText: _specialityError),
                           const SizedBox(height: 12),
-
-                          // Sélection du niveau
                           DropdownButtonFormField<String>(
                             value: _niveau,
                             decoration:
@@ -275,8 +277,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                             onChanged: (v) => setState(() => _niveau = v!),
                           ),
                           const SizedBox(height: 12),
-
-                          // Mots de passe
                           CustomInput(
                               label: "Mot de passe",
                               controller: _passwordCtrl,
@@ -288,15 +288,11 @@ class _RegisterScreenState extends State<RegisterScreen>
                               isPassword: true,
                               errorText: _confirmError),
                           const SizedBox(height: 24),
-
-                          // Bouton inscription ou loader
                           _loading
                               ? const CircularProgressIndicator()
                               : CustomButton(
                                   text: "S'inscrire", onPressed: _register),
                           const SizedBox(height: 24),
-
-                          // Ligne séparation
                           Row(
                             children: const [
                               Expanded(child: Divider(thickness: 1)),
@@ -308,13 +304,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ],
                           ),
                           const SizedBox(height: 16),
-
-                          // Autres boutons d’authentification
-                          CustomButton(
-                              text: "📧 Continuer avec Email",
-                              onPressed: _register),
-                          const SizedBox(height: 12),
-
                           CustomButton(
                             text: "🔵 Continuer avec Google",
                             onPressed: () =>
@@ -325,7 +314,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-
                           CustomButton(
                             text: " Continuer avec Apple",
                             onPressed: () =>
@@ -336,15 +324,15 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                           ),
                           const SizedBox(height: 16),
-
-                          // Liens
                           TextButton(
-                              onPressed: () => Navigator.pushReplacementNamed(
-                                  context, '/login'),
-                              child: const Text(
-                                  "Vous avez déjà un compte ? Se connecter",
-                                  style: TextStyle(
-                                      decoration: TextDecoration.underline))),
+                            onPressed: () => Navigator.pushReplacementNamed(
+                                context, '/login'),
+                            child: const Text(
+                              "Vous avez déjà un compte ? Se connecter",
+                              style: TextStyle(
+                                  decoration: TextDecoration.underline),
+                            ),
+                          ),
                           TextButton(
                             onPressed: () =>
                                 Navigator.pushReplacementNamed(context, '/'),
@@ -357,7 +345,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     ),
                   ),
 
-                  // 🔹 Section BTS
+                  // Section info BTS
                   buildAnimatedCard(
                     controller: _btsController,
                     child: buildCard(
@@ -369,8 +357,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   fontWeight: FontWeight.bold, fontSize: 18)),
                           SizedBox(height: 8),
                           Text(
-                            "Le BTS est un diplôme national qui permet de se former rapidement "
-                            "dans un domaine professionnel précis et d'acquérir des compétences recherchées.",
+                            "Le BTS est un diplôme national qui permet de se former rapidement dans un domaine professionnel précis.",
                             style: TextStyle(fontSize: 14),
                           ),
                         ],
@@ -378,7 +365,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                     ),
                   ),
 
-                  // 🔹 Mentions légales
+                  // Mentions légales
                   buildAnimatedCard(
                     controller: _footerController,
                     child: buildCard(
@@ -390,9 +377,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   fontWeight: FontWeight.bold, fontSize: 18)),
                           SizedBox(height: 8),
                           Text(
-                            "Politique de confidentialité : nous respectons vos données et votre vie privée.\n\n"
-                            "Conditions d'utilisation : en utilisant cette application, vous acceptez nos règles.\n\n"
-                            "Contact : devopsdesigngest@gmail.com",
+                            "Politique de confidentialité : nous respectons vos données.\n\nContact : devopsdesigngest@gmail.com",
                             style: TextStyle(fontSize: 14),
                           ),
                         ],

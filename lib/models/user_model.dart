@@ -7,7 +7,6 @@ class AppUser {
   final String school;
   final String speciality;
   final String role;
-  final String password;
   final String? photoUrl;
   final String? niveau;
 
@@ -19,7 +18,6 @@ class AppUser {
     this.school = '',
     this.speciality = '',
     this.role = 'etudiant',
-    this.password = '',
     this.photoUrl,
     this.niveau,
   });
@@ -33,7 +31,6 @@ class AppUser {
       'school': school,
       'speciality': speciality,
       'role': role,
-      'password': password,
       'photoUrl': photoUrl,
       'niveau': niveau,
     };
@@ -48,13 +45,12 @@ class AppUser {
       school: map['school'] ?? '',
       speciality: map['speciality'] ?? '',
       role: map['role'] ?? 'etudiant',
-      password: map['password'] ?? '',
       photoUrl: map['photoUrl'],
       niveau: map['niveau'],
     );
   }
 
-  // ======= copyWith =======
+  // ======= copyWith (sans password) =======
   AppUser copyWith({
     String? uid,
     String? name,
@@ -63,7 +59,6 @@ class AppUser {
     String? school,
     String? speciality,
     String? role,
-    String? password,
     String? photoUrl,
     String? niveau,
   }) {
@@ -75,7 +70,6 @@ class AppUser {
       school: school ?? this.school,
       speciality: speciality ?? this.speciality,
       role: role ?? this.role,
-      password: password ?? this.password,
       photoUrl: photoUrl ?? this.photoUrl,
       niveau: niveau ?? this.niveau,
     );

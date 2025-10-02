@@ -21,57 +21,13 @@ class _QuizTabState extends State<QuizTab> {
   late Future<List<_ModuleSimple>> _modulesFuture;
   final User? user = FirebaseAuth.instance.currentUser;
 
-  // AJOUT : fonction pour récupérer les tentatives d’un quiz spécifique
-  Widget _buildQuizAttempts(String userId, String quizId) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _firestore
-          .collection("users/$userId/quizHistory")
-          .where("quizId", isEqualTo: quizId)
-          .orderBy("date", descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox();
-        final results = snapshot.data!.docs
-            .map((doc) => QuizResult.fromFirestore(doc))
-            .toList();
-        if (results.isEmpty) return const SizedBox();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Divider(),
-            const Text(
-              "📜 Mes tentatives",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            ...results.map((r) => Card(
-                  child: ListTile(
-                    title: Text("Score: ${r.score}/${r.total}"),
-                    subtitle: Text(
-                        "Badge: ${r.badge} | ${r.percent}% | ${r.date.toLocal().toString().split(' ')[0]}"),
-                    trailing: const Icon(Icons.visibility),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QuizReviewScreen(result: r),
-                        ),
-                      );
-                    },
-                  ),
-                )),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
     _modulesFuture = _loadModulesAndQuizzes();
   }
 
+  /// Chargement des modules et de leurs quiz
   Future<List<_ModuleSimple>> _loadModulesAndQuizzes() async {
     final modulesSnap = await _firestore.collection('modules').get();
     final List<_ModuleSimple> modules = [];
@@ -95,10 +51,11 @@ class _QuizTabState extends State<QuizTab> {
               .map((qq) => QuestionModel.fromMap(Map<String, dynamic>.from(qq)))
               .toList();
           return QuizModel(
-              id: qDoc.id,
-              title: (data['title'] ?? 'Quiz').toString(),
-              moduleId: moduleId,
-              questions: questions);
+            id: qDoc.id,
+            title: (data['title'] ?? 'Quiz').toString(),
+            moduleId: moduleId,
+            questions: questions,
+          );
         }
       }).toList();
 
@@ -107,6 +64,7 @@ class _QuizTabState extends State<QuizTab> {
     return modules;
   }
 
+  /// Score le plus élevé d’un utilisateur sur un quiz
   Future<int?> _getUserBestScore(String quizId) async {
     if (user == null) return null;
     final doc = await _firestore
@@ -117,6 +75,55 @@ class _QuizTabState extends State<QuizTab> {
     return null;
   }
 
+  /// Tentatives d’un quiz spécifique
+  Widget _buildQuizAttempts(String userId, String quizId) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _firestore
+          .collection("users/$userId/quizHistory")
+          .where("quizId", isEqualTo: quizId)
+          .orderBy("date", descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+        final results = snapshot.data!.docs
+            .map((doc) => QuizResult.fromFirestore(doc))
+            .toList();
+        if (results.isEmpty) return const SizedBox();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(),
+              const Text(
+                "📜 Mes tentatives",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ...results.map((r) => Card(
+                    child: ListTile(
+                      title: Text("Score: ${r.score}/${r.total}"),
+                      subtitle: Text(
+                          "Badge: ${r.badge} | ${r.percent}% | ${r.date.toLocal().toString().split(' ')[0]}"),
+                      trailing: const Icon(Icons.visibility),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => QuizReviewScreen(result: r),
+                          ),
+                        );
+                      },
+                    ),
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Historique global des quiz
   Widget _buildHistory(String userId) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _firestore
@@ -130,31 +137,34 @@ class _QuizTabState extends State<QuizTab> {
             .toList();
         if (results.isEmpty) return const SizedBox();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Divider(),
-            const Text(
-              "📜 Historique de mes quiz",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            ...results.map((r) => Card(
-                  child: ListTile(
-                    title: Text("${r.quizId} : ${r.score}/${r.total}"),
-                    subtitle: Text(
-                        "Badge: ${r.badge} | ${r.percent}% | ${r.date.toLocal().toString().split(' ')[0]}"),
-                    trailing: const Icon(Icons.history),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => QuizReviewScreen(result: r),
-                        ),
-                      );
-                    },
-                  ),
-                )),
-          ],
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 80),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(),
+              const Text(
+                "📜 Historique de mes quiz",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              ...results.map((r) => Card(
+                    child: ListTile(
+                      title: Text("${r.quizId} : ${r.score}/${r.total}"),
+                      subtitle: Text(
+                          "Badge: ${r.badge} | ${r.percent}% | ${r.date.toLocal().toString().split(' ')[0]}"),
+                      trailing: const Icon(Icons.history),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => QuizReviewScreen(result: r),
+                          ),
+                        );
+                      },
+                    ),
+                  )),
+            ],
+          ),
         );
       },
     );
@@ -167,16 +177,20 @@ class _QuizTabState extends State<QuizTab> {
       body: FutureBuilder<List<_ModuleSimple>>(
         future: _modulesFuture,
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting)
+          if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          if (snap.hasError)
+          }
+          if (snap.hasError) {
             return Center(child: Text('Erreur: ${snap.error}'));
+          }
 
           final modules = snap.data ?? [];
-          if (modules.isEmpty) return const Center(child: Text('Aucun module'));
+          if (modules.isEmpty) {
+            return const Center(child: Text('Aucun module'));
+          }
 
           return ListView(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
@@ -203,7 +217,6 @@ class _QuizTabState extends State<QuizTab> {
                                     ? s.data
                                     : null;
                             return ExpansionTile(
-                              // 🔹 CHANGEMENT : ExpansionTile au lieu de ListTile simple
                               leading:
                                   const Icon(Icons.quiz, color: Colors.blue),
                               title: Text(q.title),
@@ -217,13 +230,12 @@ class _QuizTabState extends State<QuizTab> {
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                        builder: (_) =>
-                                            QuizPlayScreen(quiz: q)),
+                                      builder: (_) => QuizPlayScreen(quiz: q),
+                                    ),
                                   ),
                                 ),
                                 if (user != null)
-                                  _buildQuizAttempts(
-                                      user!.uid, q.id), // 🔹 AJOUT ICI
+                                  _buildQuizAttempts(user!.uid, q.id),
                               ],
                             );
                           },
@@ -240,6 +252,7 @@ class _QuizTabState extends State<QuizTab> {
   }
 }
 
+/// Modèle simplifié pour afficher un module
 class _ModuleSimple {
   final String id;
   final String title;
@@ -247,7 +260,7 @@ class _ModuleSimple {
   _ModuleSimple({required this.id, required this.title, required this.quizzes});
 }
 
-/// ================= QuizPlayScreen
+/// ================= Écran de jeu du quiz
 class QuizPlayScreen extends StatefulWidget {
   final QuizModel quiz;
   const QuizPlayScreen({super.key, required this.quiz});
@@ -391,8 +404,6 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
       );
     }
 
-    final q = widget.quiz.questions[currentIndex];
-
     return Scaffold(
       appBar: AppBar(title: Text(widget.quiz.title)),
       body: Padding(
@@ -401,7 +412,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             ? _buildResultSummary()
             : Column(
                 children: [
-                  if (q.durationSeconds != null && q.durationSeconds! > 0)
+                  if (widget.quiz.questions[currentIndex].durationSeconds !=
+                          null &&
+                      widget.quiz.questions[currentIndex].durationSeconds! > 0)
                     Text('⏱ Temps restant: $remainingSeconds s',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                   Expanded(child: _buildQuestionView()),
@@ -457,12 +470,13 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             final disabled = answer != -1;
             Color? color;
             if (disabled) {
-              if (i == q.correctIndex)
+              if (i == q.correctIndex) {
                 color = Colors.green.shade200;
-              else if (isSelected)
+              } else if (isSelected) {
                 color = Colors.red.shade200;
-              else
+              } else {
                 color = Colors.grey.shade100;
+              }
             } else if (isSelected) {
               color = Colors.blue.shade100;
             }
@@ -530,6 +544,7 @@ class QuizReviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text("Relecture ${result.quizId}")),
       body: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 80),
         itemCount: result.answers.length,
         itemBuilder: (context, i) {
           return ListTile(

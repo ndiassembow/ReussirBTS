@@ -4,7 +4,7 @@ import 'question_model.dart';
 class QuizModel {
   final String id;
   final String title;
-  final String moduleId; // 🔹 Pour savoir à quel module appartient le quiz
+  final String moduleId;
   final List<QuestionModel> questions;
   final Map<String, int> badgeThresholds;
 
@@ -23,13 +23,12 @@ class QuizModel {
   factory QuizModel.fromMap(
     Map<String, dynamic> map, {
     required String id,
-    required String moduleId, // 🔹 Ajout pour forcer l’appartenance
+    required String moduleId,
   }) {
     return QuizModel(
       id: id,
       title: (map['title'] ?? 'Quiz').toString(),
-      moduleId:
-          map['moduleId']?.toString() ?? moduleId, // fallback au paramètre
+      moduleId: map['moduleId']?.toString() ?? moduleId,
       questions: (map['questions'] as List<dynamic>? ?? [])
           .map((q) => QuestionModel.fromMap(Map<String, dynamic>.from(q)))
           .toList(),

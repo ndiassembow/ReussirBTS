@@ -4,20 +4,18 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
+import 'package:open_file/open_file.dart';
 
 import '../models/user_model.dart';
 import '../models/course_model.dart';
 import '../models/fiche_model.dart';
 import '../models/video_model.dart';
 
-/// Service pour interagir avec Firestore et gérer le cache local.
-/// 🔹 Gère les utilisateurs, modules, fiches et vidéos.
-/// 🔹 Assure un fallback hors-ligne avec `path_provider`.
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ===================== HELPERS =====================
-  /// Convertit une valeur dynamique en `int`.
   int _toInt(dynamic v, [int fallback = 0]) {
     if (v == null) return fallback;
     if (v is int) return v;
@@ -27,14 +25,12 @@ class FirestoreService {
     return fallback;
   }
 
-  /// Extrait un ordre numérique depuis un ID (ex: "fiche12" -> 12).
   int _extractOrderFromId(String id) {
     if (id.isEmpty) return 0;
     final m = RegExp(r'\d+').firstMatch(id);
     return m != null ? int.tryParse(m.group(0)!) ?? 0 : 0;
   }
 
-  /// Définit l'ordre à partir des données Firestore (ou fallback sur ID).
   int _orderFromDocData(Map<String, dynamic> data, String id) {
     if (data.containsKey('order')) {
       return _toInt(data['order'], _extractOrderFromId(id));
@@ -42,8 +38,43 @@ class FirestoreService {
     return _extractOrderFromId(id);
   }
 
+  // ===================== LOCAL FILES =====================
+  Future<String?> _downloadAndCacheFile(String url, String filename) async {
+    if (kIsWeb) return null; // pas de cache sur web
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath = "${dir.path}/$filename";
+
+      if (await File(filePath).exists()) return filePath;
+
+      await Dio().download(url, filePath);
+      return filePath;
+    } catch (e) {
+      print("Erreur téléchargement $filename : $e");
+      return null;
+    }
+  }
+
+  Future<void> openOrDownloadResource(String url, String filename) async {
+    if (kIsWeb) {
+      await OpenFile.open(url);
+      return;
+    }
+
+    final dir = await getApplicationDocumentsDirectory();
+    final filePath = "${dir.path}/$filename";
+
+    if (await File(filePath).exists()) {
+      await OpenFile.open(filePath);
+      return;
+    }
+
+    final path = await _downloadAndCacheFile(url, filename);
+    if (path != null) await OpenFile.open(path);
+  }
+
   // ===================== USERS =====================
-  /// Récupère un utilisateur par son UID (Firestore + fallback local).
   Future<AppUser?> getUser(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
@@ -54,7 +85,6 @@ class FirestoreService {
       print('FirestoreService.getUser firestore error: $e');
     }
 
-    // fallback offline
     if (!kIsWeb) {
       final users = await _getAllUsersLocal();
       try {
@@ -66,9 +96,7 @@ class FirestoreService {
     return null;
   }
 
-  /// Sauvegarde un utilisateur (local + Firestore).
   Future<void> saveUser(AppUser user) async {
-    // Local
     if (!kIsWeb) {
       try {
         final dir = await getApplicationDocumentsDirectory();
@@ -83,7 +111,6 @@ class FirestoreService {
       }
     }
 
-    // Firestore
     try {
       await _db.collection('users').doc(user.uid).set(user.toMap());
     } catch (e) {
@@ -93,7 +120,6 @@ class FirestoreService {
 
   Future<void> updateUser(AppUser user) async => await saveUser(user);
 
-  /// Supprime toutes les données liées à un utilisateur (quiz + profil).
   Future<void> deleteUserData(String uid) async {
     try {
       final resultsSnap = await _db
@@ -115,7 +141,6 @@ class FirestoreService {
     }
   }
 
-  /// Récupère tous les utilisateurs stockés en local.
   Future<List<AppUser>> _getAllUsersLocal() async {
     if (kIsWeb) return [];
     try {
@@ -131,7 +156,6 @@ class FirestoreService {
     }
   }
 
-  /// Vérifie si un utilisateur est admin.
   Future<bool> isAdmin(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
@@ -143,11 +167,9 @@ class FirestoreService {
   }
 
   // ===================== MODULES =====================
-  /// Récupère tous les modules (Firestore + cache local).
   Future<List<Course>> getModules({bool forceRefresh = false}) async {
     List<Course> cachedModules = [];
 
-    // Lire depuis cache
     if (!kIsWeb) {
       try {
         final dir = await getApplicationDocumentsDirectory();
@@ -164,7 +186,6 @@ class FirestoreService {
       }
     }
 
-    // Lire depuis Firestore
     try {
       final snap = await _db.collection('modules').get();
       List<Course> modules = [];
@@ -185,7 +206,6 @@ class FirestoreService {
         modules.add(Course.fromMap(moduleMap, id: moduleId));
       }
 
-      // Écrire cache
       if (!kIsWeb) {
         try {
           final dir = await getApplicationDocumentsDirectory();
@@ -205,7 +225,6 @@ class FirestoreService {
   }
 
   // ===================== MODULE CONTENT =====================
-  /// Récupère les fiches d’un module.
   Future<List<Fiche>> getFichesForModule(String moduleId) async {
     try {
       final snap = await _db
@@ -229,7 +248,6 @@ class FirestoreService {
     }
   }
 
-  /// Récupère les vidéos d’un module.
   Future<List<VideoItem>> getVideosForModule(String moduleId) async {
     try {
       final snap = await _db
@@ -254,7 +272,6 @@ class FirestoreService {
   }
 
   // ===================== CRUD =====================
-  // ---- MODULES ----
   Future<String> addModule(Course course) async {
     final ref = _db.collection('modules').doc(course.id);
     await ref.set(course.toMap());
@@ -269,7 +286,6 @@ class FirestoreService {
     await _db.collection('modules').doc(moduleId).delete();
   }
 
-  // ---- FICHES ----
   Future<void> addFiche(String moduleId, Fiche fiche) async {
     await _db
         .collection('modules')
@@ -297,7 +313,6 @@ class FirestoreService {
         .delete();
   }
 
-  // ---- VIDEOS ----
   Future<void> addVideo(String moduleId, VideoItem video) async {
     await _db
         .collection('modules')

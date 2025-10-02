@@ -53,11 +53,15 @@ dependencies:
   # 🔹 Indicateurs circulaires
   percent_indicator: ^4.2.2
 
+  # 🔹 Graphiques
+  fl_chart: ^0.68.0
+
 # 🛠 Dev dependencies (tests, linter)
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
+  flutter_launcher_icons: ^0.13.1
 
 # ⚡ Flutter config
 flutter:
@@ -65,5 +69,20 @@ flutter:
 
   # 🔹 Assets (images, illustrations)
   assets:
-    - assets/images/bts_logo.png
+    - assets/images/bts_logo_icon.png
     - assets/illustrations/splash.png
+
+# 🎨 Génération icônes
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/bts_logo_icon.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/bts_logo_icon.png"
+
+  # 🔹 Configuration Web
+  web:
+    generate: true
+    image_path: "assets/images/bts_logo_icon.png"
+    background_color: "#ffffff"
+    theme_color: "#2563EB"

@@ -1,21 +1,16 @@
 // 📁 lib/app/auth_gate.dart
 
-// Importation des bibliothèques nécessaires
-import 'dart:convert'; // Pour encoder/décoder les données en JSON
-import 'dart:io'; // Pour manipuler les fichiers locaux (sauf sur Web)
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path_provider/path_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // Détection de la plateforme Web
-import 'package:path_provider/path_provider.dart'; // Pour obtenir le chemin du stockage local
-import 'package:firebase_auth/firebase_auth.dart'; // Authentification Firebase
-import 'package:cloud_firestore/cloud_firestore.dart'; // Base de données Firestore
-
-// Importation des modèles et services internes
 import '../models/user_model.dart';
 import '../services/local_user_service.dart';
 
 class AuthService {
-  // Instances des services Firebase et service local
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final LocalUserService _localQueue = LocalUserService();
@@ -31,14 +26,12 @@ class AuthService {
     String niveau = 'BTS1',
   }) async {
     try {
-      // Création d’un compte Firebase
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       final uid = cred.user!.uid;
 
-      // Création d’un objet utilisateur
       final user = AppUser(
         uid: uid,
         name: name,
@@ -47,28 +40,15 @@ class AuthService {
         school: school,
         speciality: speciality,
         role: 'etudiant',
-        password: password,
         niveau: niveau,
       );
 
-      // Sauvegarde de l’utilisateur dans Firestore
-      await _db.collection('users').doc(uid).set({
-        'uid': uid,
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'school': school,
-        'speciality': speciality,
-        'role': 'etudiant',
-        'niveau': niveau,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      await _db.collection('users').doc(uid).set(user.toMap());
 
-      // Sauvegarde locale
       await _saveUserLocal(user);
       return user;
     } catch (e) {
-      // Si échec, sauvegarde en mode hors ligne (utilisateur en attente)
+      // 🔹 En cas de hors ligne, on garde l’utilisateur en attente (sans mot de passe !)
       final fakeUid = 'pending_${DateTime.now().millisecondsSinceEpoch}';
       final user = AppUser(
         uid: fakeUid,
@@ -78,23 +58,10 @@ class AuthService {
         school: school,
         speciality: speciality,
         role: 'etudiant',
-        password: password,
         niveau: niveau,
       );
 
-      // Stockage des infos en attente dans la file locale
-      await _localQueue.savePendingUserMap({
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'school': school,
-        'speciality': speciality,
-        'password': password,
-        'role': 'etudiant',
-        'niveau': niveau,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-
+      await _localQueue.savePendingUserMap(user.toMap());
       await _saveUserLocal(user);
       return user;
     }
@@ -106,44 +73,35 @@ class AuthService {
     required String password,
   }) async {
     try {
-      // Connexion via Firebase
       final cred = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // Récupération des données utilisateur dans Firestore
       final snap = await _db.collection('users').doc(cred.user!.uid).get();
       if (snap.exists) {
-        final data = snap.data()!;
-        final user = AppUser.fromMap(data);
+        final user = AppUser.fromMap(snap.data()!);
         await _saveUserLocal(user);
         return user;
       }
 
-      // Sinon, récupération depuis la mémoire locale
+      // fallback local
       final localUser = await getLocalUserByUid(cred.user!.uid);
       if (localUser != null) return localUser;
 
-      // Sinon, création d’un utilisateur minimal
       return AppUser(
         uid: cred.user!.uid,
         name: cred.user!.displayName ?? '',
         email: cred.user!.email ?? email,
-        phone: '',
-        school: '',
-        speciality: '',
         role: 'etudiant',
-        password: password,
         niveau: 'BTS1',
       );
     } catch (e) {
-      // Vérification locale si pas de connexion
+      // 🔹 Offline fallback (sans vérifier password en clair)
       final user = await getLocalUserByEmail(email);
-      if (user != null && user.password == password) {
-        return user;
-      }
-      throw Exception("Impossible de se connecter");
+      if (user != null) return user;
+
+      throw Exception("Impossible de se connecter : $e");
     }
   }
 
@@ -161,11 +119,10 @@ class AuthService {
     try {
       await _auth.signOut();
     } catch (_) {}
-    await _clearLocalSession(); // Nettoyage des données locales
+    await _clearLocalSession();
   }
 
   // ---------------- REPLAY PENDING USERS ----------------
-  // Réessaye de synchroniser les utilisateurs créés hors ligne
   Future<void> replayPendingUsers() async {
     try {
       final pending = await _localQueue.loadPendingUsers();
@@ -175,33 +132,22 @@ class AuthService {
 
       for (final u in pending) {
         try {
-          // Nouvelle tentative de création dans Firebase
           final cred = await _auth.createUserWithEmailAndPassword(
             email: u['email'] as String,
-            password: u['password'] as String,
+            password: "Temp123!", // ⚠️ temporaire, user devra reset via email
           );
-          final uid = cred.user!.uid;
 
-          // Sauvegarde dans Firestore
+          final uid = cred.user!.uid;
           await _db.collection('users').doc(uid).set({
+            ...u,
             'uid': uid,
-            'name': u['name'],
-            'email': u['email'],
-            'phone': u['phone'],
-            'school': u['school'],
-            'speciality': u['speciality'],
-            'role': 'etudiant',
-            'niveau': u['niveau'],
-            'createdAt': u['createdAt'],
             'syncedAt': DateTime.now().toIso8601String(),
           });
         } catch (_) {
-          // Si échec, l’utilisateur reste en attente
           stillPending.add(u);
         }
       }
 
-      // Mise à jour de la file locale
       if (stillPending.isEmpty) {
         await _localQueue.clearPendingUsers();
       } else {
@@ -212,21 +158,17 @@ class AuthService {
     }
   }
 
-  // ---------------- SAUVEGARDE LOCALE JSON ----------------
+  // ---------------- SAUVEGARDE LOCALE ----------------
   Future<void> _saveUserLocal(AppUser user) async {
-    if (kIsWeb) return; // Pas de sauvegarde locale sur Web
+    if (kIsWeb) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/users.json');
 
-      // Lecture des utilisateurs existants
       List<AppUser> users = await _getAllUsersLocal();
-
-      // Mise à jour (remplacement si doublon)
       users.removeWhere((u) => u.uid == user.uid);
       users.add(user);
 
-      // Sauvegarde dans un fichier JSON
       await file.writeAsString(
         jsonEncode(users.map((u) => u.toMap()).toList()),
       );
@@ -235,7 +177,6 @@ class AuthService {
     }
   }
 
-  // Récupération de tous les utilisateurs sauvegardés localement
   Future<List<AppUser>> _getAllUsersLocal() async {
     if (kIsWeb) return [];
     try {
@@ -252,7 +193,6 @@ class AuthService {
     }
   }
 
-  // Recherche locale par UID
   Future<AppUser?> getLocalUserByUid(String uid) async {
     final users = await _getAllUsersLocal();
     try {
@@ -262,7 +202,6 @@ class AuthService {
     }
   }
 
-  // Recherche locale par Email
   Future<AppUser?> getLocalUserByEmail(String email) async {
     final users = await _getAllUsersLocal();
     try {
@@ -272,12 +211,11 @@ class AuthService {
     }
   }
 
-  // Suppression de la session locale
   Future<void> _clearLocalSession() async {
     if (kIsWeb) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/session.json');
+      final file = File('${dir.path}/users.json');
       if (await file.exists()) {
         await file.delete();
       }
